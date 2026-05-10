@@ -1,0 +1,238 @@
+@import "tailwindcss";
+
+@source "../app";
+@source "../components";
+@source "../lib";
+@source "../pages";
+
+@theme {
+  --color-ink: #070706;
+  --color-night: #0d0d0c;
+  --color-coal: #151411;
+  --color-panel: #1a1814;
+  --color-panel-soft: #211f1a;
+  --color-line: rgba(255, 253, 248, 0.11);
+  --color-linen: #f4efe6;
+  --color-muted: #b8aa93;
+  --color-sand: #d9c8aa;
+  --color-champagne: #d8b86f;
+  --color-gold: #c8a24d;
+  --color-moss: #8fa27b;
+  --color-clay: #b56d4b;
+  --color-pearl: #fffdf8;
+  --shadow-premium: 0 24px 70px rgba(0, 0, 0, 0.34);
+  --shadow-soft: 0 18px 44px rgba(0, 0, 0, 0.22);
+}
+
+:root {
+  color-scheme: dark;
+  background: #070706;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 16% -12%, rgba(216, 184, 111, 0.2), transparent 34rem),
+    radial-gradient(circle at 85% 8%, rgba(181, 109, 75, 0.1), transparent 28rem),
+    linear-gradient(135deg, #070706 0%, #11100e 48%, #18150f 100%);
+  color: #fffdf8;
+  font-feature-settings:
+    "rlig" 1,
+    "calt" 1;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+input,
+select,
+textarea {
+  color: #fffdf8;
+  font: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  border: 0;
+}
+
+button {
+  cursor: pointer;
+}
+
+.table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #d8b86f #151411;
+}
+
+@layer components {
+  .app-shell {
+    min-height: 100vh;
+  }
+
+  .main-shell {
+    min-width: 0;
+    flex: 1;
+    padding: 24px;
+  }
+
+  @media (min-width: 1024px) {
+    .main-shell {
+      padding: 32px;
+    }
+  }
+
+  .surface-card {
+    border: 1px solid rgba(255, 253, 248, 0.1);
+    background:
+      linear-gradient(180deg, rgba(255, 253, 248, 0.07), rgba(255, 253, 248, 0.035)),
+      rgba(21, 20, 17, 0.88);
+    border-radius: 18px;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+  }
+
+  .surface-card-hover {
+    transition:
+      transform 180ms ease,
+      border-color 180ms ease,
+      background 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .surface-card-hover:hover {
+    transform: translateY(-2px);
+    border-color: rgba(216, 184, 111, 0.36);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+  }
+
+  .btn {
+    display: inline-flex;
+    height: 42px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    border-radius: 12px;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    transition:
+      transform 160ms ease,
+      background 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease;
+  }
+
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #f0d18a, #c8a24d);
+    color: #070706;
+    box-shadow: 0 14px 28px rgba(216, 184, 111, 0.18);
+  }
+
+  .btn-secondary {
+    border: 1px solid rgba(255, 253, 248, 0.14);
+    background: rgba(255, 253, 248, 0.045);
+    color: #f4efe6;
+  }
+
+  .btn-secondary:hover {
+    border-color: rgba(216, 184, 111, 0.35);
+    color: #fffdf8;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: rgba(244, 239, 230, 0.72);
+  }
+
+  .btn-ghost:hover {
+    background: rgba(255, 253, 248, 0.07);
+    color: #fffdf8;
+  }
+
+  .field-label {
+    display: grid;
+    gap: 8px;
+    color: rgba(244, 239, 230, 0.74);
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  .field-control {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid rgba(255, 253, 248, 0.1);
+    border-radius: 12px;
+    background: rgba(7, 7, 6, 0.42);
+    padding: 0 13px;
+    color: #fffdf8;
+    outline: none;
+    transition:
+      border-color 160ms ease,
+      box-shadow 160ms ease,
+      background 160ms ease;
+  }
+
+  .field-control::placeholder {
+    color: rgba(184, 170, 147, 0.55);
+  }
+
+  .field-control:focus {
+    border-color: rgba(216, 184, 111, 0.7);
+    box-shadow: 0 0 0 4px rgba(216, 184, 111, 0.1);
+    background: rgba(7, 7, 6, 0.62);
+  }
+
+  select.field-control {
+    appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, #d8b86f 50%),
+      linear-gradient(135deg, #d8b86f 50%, transparent 50%);
+    background-position:
+      calc(100% - 18px) 19px,
+      calc(100% - 13px) 19px;
+    background-size:
+      5px 5px,
+      5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 34px;
+  }
+
+  textarea.field-control {
+    min-height: 128px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    resize: vertical;
+  }
+
+  .section-title {
+    font-size: 18px;
+    font-weight: 750;
+    letter-spacing: 0;
+    color: #fffdf8;
+  }
+
+  .muted-copy {
+    color: rgba(244, 239, 230, 0.64);
+  }
+}
