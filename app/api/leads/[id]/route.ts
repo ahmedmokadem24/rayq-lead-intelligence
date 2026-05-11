@@ -1,42 +1,46 @@
 import { NextResponse } from "next/server";
-import { readLeads, writeLeads } from "@/lib/storage";
-import { calculateLeadScore } from "@/lib/scoring";
+import { deleteLead, getLead, updateLead } from "@/lib/storage";
 
 type Params = {
   params: Promise<{ id: string }>;
 };
 
 export async function GET(_: Request, { params }: Params) {
-  const { id } = await params;
-  const leads = await readLeads();
-  const lead = leads.find((item) => item.id === id);
-  if (!lead) return NextResponse.json({ message: "Lead not found" }, { status: 404 });
-  return NextResponse.json(lead);
+  try {
+    const { id } = await params;
+    const lead = await getLead(id);
+    if (!lead) return NextResponse.json({ message: "Lead not found" }, { status: 404 });
+    return NextResponse.json(lead);
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, message: error instanceof Error ? error.message : "Could not load lead" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function PATCH(request: Request, { params }: Params) {
-  const { id } = await params;
-  const body = await request.json();
-  const leads = await readLeads();
-  const index = leads.findIndex((item) => item.id === id);
-  if (index < 0) return NextResponse.json({ message: "Lead not found" }, { status: 404 });
-
-  const merged = { ...leads[index], ...body, updatedDate: new Date().toISOString().slice(0, 10) };
-  const score = calculateLeadScore(merged);
-  leads[index] = { ...merged, leadScore: score.score, priority: score.priority };
-  await writeLeads(leads);
-  return NextResponse.json(leads[index]);
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const lead = await updateLead(id, body);
+    if (!lead) return NextResponse.json({ message: "Lead not found" }, { status: 404 });
+    return NextResponse.json(lead);
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, message: error instanceof Error ? error.message : "Could not update lead" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function DELETE(_: Request, { params }: Params) {
   try {
     const { id } = await params;
-    const leads = await readLeads();
-    const exists = leads.some((item) => item.id === id);
-    if (!exists) return NextResponse.json({ ok: false, message: "Lead not found" }, { status: 404 });
-
-    await writeLeads(leads.filter((item) => item.id !== id));
-    return NextResponse.json({ ok: true, deleted: 1 });
+    const existing = await getLead(id);
+    if (!existing) return NextResponse.json({ ok: false, message: "Lead not found" }, { status: 404 });
+    const deleted = await deleteLead(id);
+    return NextResponse.json({ ok: true, deleted });
   } catch (error) {
     return NextResponse.json(
       { ok: false, message: error instanceof Error ? error.message : "Could not delete lead" },
