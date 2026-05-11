@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { Badge } from "@/components/Badge";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { Card, CardHeader, ScoreBadge } from "@/components/ui";
 import { countries, industries, businessTypes } from "@/lib/constants";
 import type { Lead } from "@/types/lead";
@@ -12,6 +13,8 @@ import { founders, leadStatuses } from "@/types/lead";
 export function LeadDetailClient({ lead }: { lead: Lead }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [draft, setDraft] = useState(lead);
 
   function update(key: keyof Lead, value: string) {
@@ -29,6 +32,15 @@ export function LeadDetailClient({ lead }: { lead: Lead }) {
     router.refresh();
   }
 
+  async function deleteLead() {
+    setDeleting(true);
+    await fetch(`/api/leads/${lead.id}`, { method: "DELETE" });
+    setDeleting(false);
+    setConfirmDelete(false);
+    router.push("/leads");
+    router.refresh();
+  }
+
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
       <section className="grid gap-5">
@@ -43,6 +55,10 @@ export function LeadDetailClient({ lead }: { lead: Lead }) {
               <ScoreBadge score={draft.leadScore} />
               <Badge value={draft.priority} />
               <Badge value={draft.leadStatus} />
+              <button className="btn btn-secondary h-9 text-red-100" onClick={() => setConfirmDelete(true)}>
+                <Trash2 size={14} />
+                Delete Lead
+              </button>
             </div>
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -110,6 +126,16 @@ export function LeadDetailClient({ lead }: { lead: Lead }) {
           </div>
         </Card>
       </aside>
+      {confirmDelete ? (
+        <ConfirmModal
+          title="Delete lead"
+          message="Are you sure you want to delete this lead? This action cannot be undone."
+          confirmLabel="Delete Lead"
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={deleteLead}
+          busy={deleting}
+        />
+      ) : null}
     </div>
   );
 }

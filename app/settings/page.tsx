@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/PageHeader";
+import { RemoveDemoLeadsButton } from "@/components/RemoveDemoLeadsButton";
 import { Card, CardHeader } from "@/components/ui";
 
 const fields = [
@@ -27,6 +28,7 @@ export default function SettingsPage() {
         <div className="mt-6 rounded-2xl border border-champagne/20 bg-champagne/12 p-4 text-sm leading-6 text-linen/78">
           API keys belong in environment variables only: GOOGLE_PLACES_API_KEY, SEARCH_API_KEY or SERPAPI_API_KEY, HUNTER_API_KEY, APOLLO_API_KEY, SNOV_API_KEY, BUILTWITH_API_KEY, CLEARBIT_API_KEY, and OPENAI_API_KEY. Private keys should be used from server routes, never frontend components.
         </div>
+        <RemoveDemoLeadsButton />
       </Card>
     </>
   );

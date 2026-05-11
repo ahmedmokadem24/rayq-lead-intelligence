@@ -25,7 +25,45 @@ export async function searchGooglePlaces(filters: Partial<DiscoveryFilters>) {
     });
   }
 
-  const textQuery = buildPlacesQuery(filters);
+  const limit = normalizeLimit(filters.resultsLimit);
+  const requestedPages = Math.ceil(limit / 20);
+  const queries = buildPlacesQueries(filters);
+  const collected: DiscoveredLead[] = [];
+  const seen = new Set<string>();
+
+  for (const textQuery of queries) {
+    let pageToken: string | undefined;
+
+    for (let page = 1; page <= requestedPages && collected.length < limit; page += 1) {
+      const data = await fetchGooglePlacesPage({ apiKey, textQuery, pageToken });
+      const mapped = (data.places || []).map((place) => applyWebsiteAnalysis(mapGooglePlace(place, filters)));
+
+      for (const lead of mapped) {
+        const keys = dedupeKeys(lead);
+        if (!keys.some((key) => seen.has(key))) {
+          keys.forEach((key) => seen.add(key));
+          collected.push(lead);
+        }
+        if (collected.length >= limit) break;
+      }
+
+      pageToken = data.nextPageToken;
+      if (!pageToken) break;
+    }
+  }
+
+  return collected.slice(0, limit);
+}
+
+async function fetchGooglePlacesPage({
+  apiKey,
+  textQuery,
+  pageToken
+}: {
+  apiKey: string;
+  textQuery: string;
+  pageToken?: string;
+}) {
   let response: Response;
 
   try {
@@ -35,6 +73,7 @@ export async function searchGooglePlaces(filters: Partial<DiscoveryFilters>) {
         "content-type": "application/json",
         "x-goog-api-key": apiKey,
         "x-goog-fieldmask": [
+          "nextPageToken",
           "places.id",
           "places.displayName",
           "places.formattedAddress",
@@ -50,7 +89,8 @@ export async function searchGooglePlaces(filters: Partial<DiscoveryFilters>) {
       },
       body: JSON.stringify({
         textQuery,
-        maxResultCount: 10,
+        pageSize: 20,
+        pageToken,
         languageCode: "en"
       })
     });
@@ -71,8 +111,7 @@ export async function searchGooglePlaces(filters: Partial<DiscoveryFilters>) {
     });
   }
 
-  const data = (await response.json()) as GooglePlacesResponse;
-  return (data.places || []).map((place) => applyWebsiteAnalysis(mapGooglePlace(place, filters)));
+  return (await response.json()) as GooglePlacesResponse;
 }
 
 async function safeReadError(response: Response) {
@@ -95,6 +134,41 @@ function buildPlacesQuery(filters: Partial<DiscoveryFilters>) {
     .filter(Boolean)
     .join(" ")
     .trim() || "businesses";
+}
+
+function buildPlacesQueries(filters: Partial<DiscoveryFilters>) {
+  const keywords = (filters.query || "")
+    .split(",")
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
+
+  if (!keywords.length) return [buildPlacesQuery(filters)];
+
+  return keywords.map((keyword) =>
+    [
+      keyword,
+      filters.industry,
+      filters.businessType,
+      filters.city,
+      filters.country
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .trim()
+  );
+}
+
+function normalizeLimit(value: number | undefined) {
+  const limit = Number(value || 10);
+  return [10, 20, 40, 60].includes(limit) ? limit : 10;
+}
+
+function dedupeKeys(lead: DiscoveredLead) {
+  const keys = [`id:${lead.id}`];
+  if (lead.website !== "Not found") keys.push(`website:${lead.website.toLowerCase().replace(/\/$/, "")}`);
+  if (lead.phone !== "Not found") keys.push(`phone:${lead.phone.replace(/\D/g, "")}`);
+  keys.push(`name:${lead.businessName.toLowerCase()}|${lead.address.toLowerCase()}`);
+  return keys;
 }
 
 function mapGooglePlace(place: GooglePlace, filters: Partial<DiscoveryFilters>): DiscoveredLead {
@@ -200,6 +274,7 @@ function findAddressPart(place: GooglePlace, types: string[]) {
 
 type GooglePlacesResponse = {
   places?: GooglePlace[];
+  nextPageToken?: string;
 };
 
 type GooglePlace = {

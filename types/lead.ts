@@ -122,6 +122,7 @@ export type DiscoveryFilters = {
   instagramUrl?: string;
   linkedInUrl?: string;
   sourceMode?: "Google Places" | "Search API / SerpAPI" | "DEMO";
+  resultsLimit?: number;
 };
 
 export const verificationStatuses = ["Verified", "Partially verified", "Needs review", "Demo data"] as const;

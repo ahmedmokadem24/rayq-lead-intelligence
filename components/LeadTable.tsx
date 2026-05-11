@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { Download, Search } from "lucide-react";
+import { Download, Search, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/Badge";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { ScoreBadge } from "@/components/ui";
 import { countries, industries } from "@/lib/constants";
 import type { Lead } from "@/types/lead";
 import { founders, leadStatuses, priorities } from "@/types/lead";
 
 export function LeadTable({ leads }: { leads: Lead[] }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [country, setCountry] = useState("");
@@ -17,6 +20,9 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
   const [priority, setPriority] = useState("");
   const [founder, setFounder] = useState("");
   const [due, setDue] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirm, setConfirm] = useState<{ ids: string[]; label: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const filtered = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -33,6 +39,34 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
       );
     });
   }, [leads, query, status, country, industry, priority, founder, due]);
+
+  const visibleIds = filtered.map((lead) => lead.id);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+
+  function toggleLead(id: string) {
+    setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  }
+
+  function toggleVisible() {
+    setSelectedIds((current) => {
+      if (allVisibleSelected) return current.filter((id) => !visibleIds.includes(id));
+      return Array.from(new Set([...current, ...visibleIds]));
+    });
+  }
+
+  async function deleteConfirmed() {
+    if (!confirm) return;
+    setDeleting(true);
+    await fetch("/api/leads", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ids: confirm.ids })
+    });
+    setSelectedIds((current) => current.filter((id) => !confirm.ids.includes(id)));
+    setConfirm(null);
+    setDeleting(false);
+    router.refresh();
+  }
 
   return (
     <div className="surface-card overflow-hidden">
@@ -56,12 +90,23 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
           <Download size={16} />
           Export CSV
         </a>
+        <button
+          className="btn btn-secondary text-red-100 disabled:opacity-45"
+          disabled={!selectedIds.length}
+          onClick={() => setConfirm({ ids: selectedIds, label: `${selectedIds.length} selected lead${selectedIds.length === 1 ? "" : "s"}` })}
+        >
+          <Trash2 size={16} />
+          Delete selected
+        </button>
         </div>
       </div>
       <div className="table-scroll overflow-x-auto">
-        <table className="min-w-[1100px] w-full text-left text-sm">
+        <table className="min-w-[1260px] w-full text-left text-sm">
           <thead className="bg-black/22 text-xs uppercase tracking-[0.16em] text-muted">
             <tr>
+              <th className="px-4 py-3">
+                <input aria-label="Select visible leads" type="checkbox" checked={allVisibleSelected} onChange={toggleVisible} className="h-4 w-4 accent-champagne" />
+              </th>
               <th className="px-4 py-3">Lead</th>
               <th className="px-4 py-3">Score</th>
               <th className="px-4 py-3">Status</th>
@@ -70,11 +115,15 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
               <th className="px-4 py-3">Founder</th>
               <th className="px-4 py-3">Next Follow-up</th>
               <th className="px-4 py-3">Opportunity</th>
+              <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/8">
             {filtered.map((lead) => (
               <tr key={lead.id} className="transition hover:bg-white/[0.045]">
+                <td className="px-4 py-4">
+                  <input aria-label={`Select ${lead.businessName}`} type="checkbox" checked={selectedIds.includes(lead.id)} onChange={() => toggleLead(lead.id)} className="h-4 w-4 accent-champagne" />
+                </td>
                 <td className="px-4 py-4 lg:px-5">
                   <Link href={`/leads/${lead.id}`} className="text-[15px] font-black text-pearl hover:text-champagne">{lead.businessName}</Link>
                   <p className="mt-1 text-xs text-muted">{lead.contactPersonName || "No contact"} · {lead.city || "No city"}</p>
@@ -91,11 +140,27 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
                 <td className="px-4 py-4 text-linen/75 lg:px-5">{lead.assignedFounder}</td>
                 <td className="px-4 py-4 text-linen/75 lg:px-5">{lead.nextFollowUpDate || "-"}</td>
                 <td className="px-4 py-4 text-linen/75 lg:px-5">{lead.estimatedOpportunity}</td>
+                <td className="px-4 py-4 lg:px-5">
+                  <button className="btn btn-ghost h-9 px-3 text-red-100" onClick={() => setConfirm({ ids: [lead.id], label: lead.businessName })}>
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {confirm ? (
+        <ConfirmModal
+          title="Delete lead"
+          message="Are you sure you want to delete this lead? This action cannot be undone."
+          confirmLabel={`Delete ${confirm.label}`}
+          onCancel={() => setConfirm(null)}
+          onConfirm={deleteConfirmed}
+          busy={deleting}
+        />
+      ) : null}
     </div>
   );
 }

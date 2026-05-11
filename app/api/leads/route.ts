@@ -23,3 +23,24 @@ export async function PUT(request: Request) {
   await writeLeads(leads);
   return NextResponse.json(leads);
 }
+
+export async function DELETE(request: Request) {
+  const body = (await request.json().catch(() => ({}))) as { ids?: string[]; removeDemo?: boolean };
+  const leads = await readLeads();
+
+  if (body.removeDemo) {
+    const isDemo = (source = "") => /demo|mock data|sample/i.test(source);
+    const remaining = leads.filter((lead) => !isDemo(lead.source));
+    await writeLeads(remaining);
+    return NextResponse.json({ ok: true, deleted: leads.length - remaining.length });
+  }
+
+  const ids = new Set(body.ids || []);
+  if (!ids.size) {
+    return NextResponse.json({ message: "No lead IDs provided" }, { status: 400 });
+  }
+
+  const remaining = leads.filter((lead) => !ids.has(lead.id));
+  await writeLeads(remaining);
+  return NextResponse.json({ ok: true, deleted: leads.length - remaining.length });
+}

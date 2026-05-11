@@ -16,7 +16,9 @@ export function AutomatedDiscoveryClient() {
 
   async function run(formData: FormData) {
     setRunning(true);
-    setMessage("");
+    const resultsLimit = Number(formData.get("resultsLimit") || 10);
+    const requestedPages = Math.ceil(resultsLimit / 20);
+    setMessage(`Fetching page 1 of ${requestedPages} from Google Places when pagination is available...`);
     const body = Object.fromEntries(formData.entries());
     const response = await fetch("/api/discovery/run", {
       method: "POST",
@@ -24,7 +26,8 @@ export function AutomatedDiscoveryClient() {
       body: JSON.stringify({
         ...body,
         leadSource: body.sourceMode === "DEMO" ? "DEMO mode" : body.sourceMode,
-        minimumOpportunityScore: Number(body.minimumOpportunityScore || 0)
+        minimumOpportunityScore: Number(body.minimumOpportunityScore || 0),
+        resultsLimit
       })
     });
     const data = await response.json();
@@ -32,7 +35,7 @@ export function AutomatedDiscoveryClient() {
     setSelected(data.leads?.[0] || null);
     setMessage(
       response.ok
-        ? `Found ${data.leads.length} opportunities. Website analysis and scoring completed where data was available.`
+        ? data.limitedResultMessage || `Found ${data.leads.length} opportunities. Website analysis and scoring completed where data was available.`
         : [data.error, data.code ? `Code: ${data.code}` : "", data.detail ? `Detail: ${data.detail}` : ""].filter(Boolean).join(" ")
     );
     setRunning(false);
@@ -94,8 +97,9 @@ export function AutomatedDiscoveryClient() {
           <Select name="country" label="Country" options={["", ...countries]} />
           <Field name="city" label="City" placeholder="Dubai, Cairo, Riyadh..." />
           <Select name="industry" label="Industry" options={["", ...industries]} />
-          <Field name="query" label="Keyword" placeholder='e.g. "now open" Dubai clinic' />
+          <Field name="query" label="Keyword(s)" placeholder="furniture store, interior design, home decor, sofa store" />
           <Select name="businessType" label="Business type" options={["", ...businessTypes]} />
+          <Select name="resultsLimit" label="Results limit" options={["10", "20", "40", "60"]} />
           <Field name="minimumOpportunityScore" label="Minimum opportunity score" type="number" defaultValue="50" />
           <Select name="serviceToPitch" label="Service to pitch" options={["", ...servicesToPitch]} />
         </div>

@@ -6,7 +6,13 @@ export async function POST(request: Request) {
   const filters = await request.json();
   try {
     const leads = await runDiscovery(filters);
-    return NextResponse.json({ leads });
+    const requestedLimit = Number(filters.resultsLimit || 10);
+    const limitedResultMessage =
+      (filters.leadSource === "Google Places" || filters.sourceMode === "Google Places") && leads.length < requestedLimit
+        ? `Google returned only ${leads.length} results for this search. Try a broader keyword or nearby city.`
+        : undefined;
+
+    return NextResponse.json({ leads, requestedLimit, limitedResultMessage });
   } catch (error) {
     if (error instanceof GooglePlacesError) {
       return NextResponse.json(
