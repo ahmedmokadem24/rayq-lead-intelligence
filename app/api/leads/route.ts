@@ -25,22 +25,29 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const body = (await request.json().catch(() => ({}))) as { ids?: string[]; removeDemo?: boolean };
-  const leads = await readLeads();
+  try {
+    const body = (await request.json().catch(() => ({}))) as { ids?: string[]; removeDemo?: boolean };
+    const leads = await readLeads();
 
-  if (body.removeDemo) {
-    const isDemo = (source = "") => /demo|mock data|sample/i.test(source);
-    const remaining = leads.filter((lead) => !isDemo(lead.source));
+    if (body.removeDemo) {
+      const isDemo = (source = "") => /demo|mock data|sample/i.test(source);
+      const remaining = leads.filter((lead) => !isDemo(lead.source));
+      await writeLeads(remaining);
+      return NextResponse.json({ ok: true, deleted: leads.length - remaining.length });
+    }
+
+    const ids = new Set(body.ids || []);
+    if (!ids.size) {
+      return NextResponse.json({ message: "No lead IDs provided" }, { status: 400 });
+    }
+
+    const remaining = leads.filter((lead) => !ids.has(lead.id));
     await writeLeads(remaining);
     return NextResponse.json({ ok: true, deleted: leads.length - remaining.length });
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, message: error instanceof Error ? error.message : "Could not delete leads" },
+      { status: 500 }
+    );
   }
-
-  const ids = new Set(body.ids || []);
-  if (!ids.size) {
-    return NextResponse.json({ message: "No lead IDs provided" }, { status: 400 });
-  }
-
-  const remaining = leads.filter((lead) => !ids.has(lead.id));
-  await writeLeads(remaining);
-  return NextResponse.json({ ok: true, deleted: leads.length - remaining.length });
 }

@@ -13,6 +13,7 @@ import { founders, leadStatuses, priorities } from "@/types/lead";
 
 export function LeadTable({ leads }: { leads: Lead[] }) {
   const router = useRouter();
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [country, setCountry] = useState("");
@@ -23,12 +24,14 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirm, setConfirm] = useState<{ ids: string[]; label: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const filtered = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     return leads.filter((lead) => {
       const text = `${lead.businessName} ${lead.contactPersonName} ${lead.website} ${lead.industry} ${lead.country}`.toLowerCase();
       return (
+        !deletedIds.includes(lead.id) &&
         (!query || text.includes(query.toLowerCase())) &&
         (!status || lead.leadStatus === status) &&
         (!country || lead.country === country) &&
@@ -38,7 +41,7 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
         (!due || (due === "today" ? lead.nextFollowUpDate <= today : Boolean(lead.nextFollowUpDate)))
       );
     });
-  }, [leads, query, status, country, industry, priority, founder, due]);
+  }, [leads, deletedIds, query, status, country, industry, priority, founder, due]);
 
   const visibleIds = filtered.map((lead) => lead.id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
@@ -57,20 +60,40 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
   async function deleteConfirmed() {
     if (!confirm) return;
     setDeleting(true);
-    await fetch("/api/leads", {
-      method: "DELETE",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ids: confirm.ids })
-    });
-    setSelectedIds((current) => current.filter((id) => !confirm.ids.includes(id)));
-    setConfirm(null);
-    setDeleting(false);
-    router.refresh();
+    setNotice(null);
+
+    try {
+      const response = await fetch("/api/leads", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: confirm.ids })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || `Delete failed with status ${response.status}`);
+      }
+
+      setDeletedIds((current) => Array.from(new Set([...current, ...confirm.ids])));
+      setSelectedIds((current) => current.filter((id) => !confirm.ids.includes(id)));
+      setNotice({ type: "success", text: `Deleted ${data.deleted || confirm.ids.length} lead${(data.deleted || confirm.ids.length) === 1 ? "" : "s"}.` });
+      setConfirm(null);
+      router.refresh();
+    } catch (error) {
+      setNotice({ type: "error", text: error instanceof Error ? error.message : "Could not delete lead." });
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
     <div className="surface-card overflow-hidden">
       <div className="border-b border-white/10 p-4 lg:p-5">
+        {notice ? (
+          <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${notice.type === "success" ? "border-emerald-400/25 bg-emerald-500/15 text-emerald-100" : "border-red-400/25 bg-red-500/15 text-red-100"}`}>
+            {notice.text}
+          </div>
+        ) : null}
         <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-7">
         <label className="relative md:col-span-2">
           <Search className="absolute left-3 top-3.5 text-muted" size={16} />
@@ -91,6 +114,7 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
           Export CSV
         </a>
         <button
+          type="button"
           className="btn btn-secondary text-red-100 disabled:opacity-45"
           disabled={!selectedIds.length}
           onClick={() => setConfirm({ ids: selectedIds, label: `${selectedIds.length} selected lead${selectedIds.length === 1 ? "" : "s"}` })}
@@ -141,7 +165,7 @@ export function LeadTable({ leads }: { leads: Lead[] }) {
                 <td className="px-4 py-4 text-linen/75 lg:px-5">{lead.nextFollowUpDate || "-"}</td>
                 <td className="px-4 py-4 text-linen/75 lg:px-5">{lead.estimatedOpportunity}</td>
                 <td className="px-4 py-4 lg:px-5">
-                  <button className="btn btn-ghost h-9 px-3 text-red-100" onClick={() => setConfirm({ ids: [lead.id], label: lead.businessName })}>
+                  <button type="button" className="btn btn-ghost h-9 px-3 text-red-100" onClick={() => setConfirm({ ids: [lead.id], label: lead.businessName })}>
                     <Trash2 size={14} />
                     Delete
                   </button>

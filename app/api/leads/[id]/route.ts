@@ -29,8 +29,18 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_: Request, { params }: Params) {
-  const { id } = await params;
-  const leads = await readLeads();
-  await writeLeads(leads.filter((item) => item.id !== id));
-  return NextResponse.json({ ok: true });
+  try {
+    const { id } = await params;
+    const leads = await readLeads();
+    const exists = leads.some((item) => item.id === id);
+    if (!exists) return NextResponse.json({ ok: false, message: "Lead not found" }, { status: 404 });
+
+    await writeLeads(leads.filter((item) => item.id !== id));
+    return NextResponse.json({ ok: true, deleted: 1 });
+  } catch (error) {
+    return NextResponse.json(
+      { ok: false, message: error instanceof Error ? error.message : "Could not delete lead" },
+      { status: 500 }
+    );
+  }
 }

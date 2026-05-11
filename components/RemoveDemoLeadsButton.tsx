@@ -13,16 +13,28 @@ export function RemoveDemoLeadsButton() {
 
   async function removeDemo() {
     setBusy(true);
-    const response = await fetch("/api/leads", {
-      method: "DELETE",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ removeDemo: true })
-    });
-    const data = await response.json();
-    setMessage(response.ok ? `Removed ${data.deleted} demo/mock/sample lead${data.deleted === 1 ? "" : "s"}.` : data.message || "Could not remove demo leads.");
-    setBusy(false);
-    setConfirm(false);
-    router.refresh();
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/leads", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ removeDemo: true })
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || `Remove demo leads failed with status ${response.status}`);
+      }
+
+      setMessage(`Removed ${data.deleted} demo/mock/sample lead${data.deleted === 1 ? "" : "s"}.`);
+      setConfirm(false);
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not remove demo leads.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -32,7 +44,7 @@ export function RemoveDemoLeadsButton() {
           <p className="font-black text-red-100">Remove Demo Leads</p>
           <p className="mt-1 text-sm leading-6 text-linen/72">Deletes only leads where source contains Demo, Mock Data, or sample. Real leads are not removed by this action.</p>
         </div>
-        <button className="btn bg-red-500/85 text-white hover:bg-red-500" onClick={() => setConfirm(true)}>
+        <button type="button" className="btn bg-red-500/85 text-white hover:bg-red-500" onClick={() => setConfirm(true)}>
           <Trash2 size={16} />
           Remove Demo Leads
         </button>

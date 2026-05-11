@@ -15,6 +15,7 @@ export function LeadDetailClient({ lead }: { lead: Lead }) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [draft, setDraft] = useState(lead);
 
   function update(key: keyof Lead, value: string) {
@@ -34,16 +35,35 @@ export function LeadDetailClient({ lead }: { lead: Lead }) {
 
   async function deleteLead() {
     setDeleting(true);
-    await fetch(`/api/leads/${lead.id}`, { method: "DELETE" });
-    setDeleting(false);
-    setConfirmDelete(false);
-    router.push("/leads");
-    router.refresh();
+    setNotice(null);
+
+    try {
+      const response = await fetch(`/api/leads/${lead.id}`, { method: "DELETE" });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || `Delete failed with status ${response.status}`);
+      }
+
+      setNotice({ type: "success", text: "Lead deleted." });
+      setConfirmDelete(false);
+      router.push("/leads");
+      router.refresh();
+    } catch (error) {
+      setNotice({ type: "error", text: error instanceof Error ? error.message : "Could not delete lead." });
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
       <section className="grid gap-5">
+        {notice ? (
+          <div className={`surface-card px-4 py-3 text-sm font-semibold ${notice.type === "success" ? "text-emerald-100" : "text-red-100"}`}>
+            {notice.text}
+          </div>
+        ) : null}
         <Card className="p-5 lg:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -55,7 +75,7 @@ export function LeadDetailClient({ lead }: { lead: Lead }) {
               <ScoreBadge score={draft.leadScore} />
               <Badge value={draft.priority} />
               <Badge value={draft.leadStatus} />
-              <button className="btn btn-secondary h-9 text-red-100" onClick={() => setConfirmDelete(true)}>
+              <button type="button" className="btn btn-secondary h-9 text-red-100" onClick={() => setConfirmDelete(true)}>
                 <Trash2 size={14} />
                 Delete Lead
               </button>
